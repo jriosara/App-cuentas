@@ -4,8 +4,21 @@ import { format, parseISO, startOfWeek, startOfMonth, isSameWeek, isSameMonth } 
 import { es } from 'date-fns/locale';
 import './App.css';
 
-// Configurar URL base desde variables de entorno o usar localhost por defecto
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// Configurar URL base de forma robusta
+const getApiUrl = () => {
+  let url = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  // Quitar slash final si existe para evitar doble slash
+  if (url.endsWith('/')) {
+    url = url.slice(0, -1);
+  }
+  // Asegurar que termine en /api si no lo tiene (a menos que sea localhost con /api ya incluido)
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
+};
+
+const API_URL = getApiUrl();
 
 function App() {
   const [transactions, setTransactions] = useState([]);
