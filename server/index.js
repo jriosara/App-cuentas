@@ -1,9 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const supabase = require('./supabaseClient');
 
 dotenv.config();
+
+// Validación de entorno
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+  console.error('ERROR CRÍTICO: Faltan variables de entorno SUPABASE_URL o SUPABASE_KEY');
+}
+
+const supabase = require('./supabaseClient');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +20,32 @@ app.use(express.json());
 // Rutas básicas
 app.get('/', (req, res) => {
   res.send('API de Control de Gastos funcionando 🚀');
+});
+
+// Endpoint de diagnóstico
+app.get('/api/health', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('transactions').select('count', { count: 'exact', head: true });
+    if (error) throw error;
+    res.json({ 
+      status: 'ok', 
+      supabase: 'connected', 
+      env: {
+        hasUrl: !!process.env.SUPABASE_URL,
+        hasKey: !!process.env.SUPABASE_KEY
+      }
+    });
+  } catch (err) {
+    console.error('Error de salud:', err);
+    res.status(500).json({ 
+      status: 'error', 
+      message: err.message,
+      env: {
+        hasUrl: !!process.env.SUPABASE_URL,
+        hasKey: !!process.env.SUPABASE_KEY
+      }
+    });
+  }
 });
 
 // Obtener todas las transacciones (gastos e ingresos)
