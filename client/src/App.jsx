@@ -7,11 +7,11 @@ import './App.css';
 // Configurar URL base de forma robusta
 const getApiUrl = () => {
   let url = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-  // Quitar slash final si existe para evitar doble slash
-  if (url.endsWith('/')) {
-    url = url.slice(0, -1);
-  }
-  // Asegurar que termine en /api si no lo tiene (a menos que sea localhost con /api ya incluido)
+  
+  // Limpiar espacios y comas o slashes al final
+  url = url.trim().replace(/[,/]+$/, '');
+  
+  // Asegurar que termine en /api
   if (!url.endsWith('/api')) {
     url = `${url}/api`;
   }
