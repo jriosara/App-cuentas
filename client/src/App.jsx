@@ -1,17 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { format, parseISO, startOfWeek, startOfMonth, isSameWeek, isSameMonth } from 'date-fns';
+import { format, parseISO, isSameWeek, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import './App.css';
 
 // Configurar URL base de forma robusta
 const getApiUrl = () => {
   let url = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-  
-  // Limpiar espacios y comas o slashes al final
   url = url.trim().replace(/[,/]+$/, '');
-  
-  // Asegurar que termine en /api
   if (!url.endsWith('/api')) {
     url = `${url}/api`;
   }
@@ -19,6 +15,16 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
+
+// Formateador de moneda COP (sin decimales)
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
 
 function App() {
   const [transactions, setTransactions] = useState([]);
@@ -97,7 +103,6 @@ function App() {
 
   const calculatePeriodSummary = () => {
     const now = new Date();
-    // Filtros para semana actual y mes actual
     const weeklyExpenses = transactions
       .filter(t => t.type === 'expense' && isSameWeek(parseISO(t.date), now, { weekStartsOn: 1 }))
       .reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -115,104 +120,146 @@ function App() {
   return (
     <div className="app-container">
       <header className="header">
-        <h1>Gastos Personales</h1>
+        <h1>Gastos Personales 💰</h1>
+        <p className="subtitle">Controla tus finanzas en pesos colombianos</p>
       </header>
 
       {/* Resumen Global */}
-      <section className="summary-cards">
-        <div className="card income">
-          <h3>Ingresos Totales</h3>
-          <p className="amount">+${summary.income.toFixed(2)}</p>
+      <section className="summary-section">
+        <div className="card balance-card">
+          <h3>Balance Total</h3>
+          <p className={`amount ${summary.balance >= 0 ? 'positive' : 'negative'}`}>
+            {formatCurrency(summary.balance)}
+          </p>
         </div>
-        <div className="card expense">
-          <h3>Gastos Totales</h3>
-          <p className="amount">-${summary.expense.toFixed(2)}</p>
-        </div>
-        <div className="card balance">
-          <h3>Balance</h3>
-          <p className="amount">${summary.balance.toFixed(2)}</p>
-        </div>
-      </section>
-
-      {/* Resumen Periódico (Semanal/Mensual) de Gastos */}
-      <section className="summary-cards">
-        <div className="card">
-          <h3>Gastos Semana Actual</h3>
-          <p className="amount">-${periodSummary.weeklyExpenses.toFixed(2)}</p>
-        </div>
-        <div className="card">
-          <h3>Gastos Mes Actual</h3>
-          <p className="amount">-${periodSummary.monthlyExpenses.toFixed(2)}</p>
+        <div className="stats-grid">
+          <div className="card income-card">
+            <h3>Ingresos</h3>
+            <p className="amount positive">+{formatCurrency(summary.income)}</p>
+          </div>
+          <div className="card expense-card">
+            <h3>Gastos</h3>
+            <p className="amount negative">-{formatCurrency(summary.expense)}</p>
+          </div>
         </div>
       </section>
 
-      {/* Formulario */}
-      <form className="transaction-form" onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label>Descripción</label>
-          <input 
-            type="text" 
-            name="description" 
-            placeholder="Ej. Comida gatos" 
-            required 
-            value={formData.description}
-            onChange={handleInputChange}
-          />
+      <section className="period-stats">
+        <div className="stat-pill">
+          <span>Esta Semana:</span>
+          <strong>{formatCurrency(periodSummary.weeklyExpenses)}</strong>
         </div>
-        <div className="form-group">
-          <label>Monto</label>
-          <input 
-            type="number" 
-            name="amount" 
-            placeholder="0.00" 
-            step="0.01" 
-            required 
-            value={formData.amount}
-            onChange={handleInputChange}
-          />
+        <div className="stat-pill">
+          <span>Este Mes:</span>
+          <strong>{formatCurrency(periodSummary.monthlyExpenses)}</strong>
         </div>
-        <div className="form-group">
-          <label>Fecha</label>
-          <input 
-            type="date" 
-            name="date" 
-            required 
-            value={formData.date}
-            onChange={handleInputChange}
-          />
-        </div>
-        <div className="form-group">
-          <label>Tipo</label>
-          <select name="type" value={formData.type} onChange={handleInputChange}>
-            <option value="expense">Gasto</option>
-            <option value="income">Ingreso</option>
-          </select>
-        </div>
-        <button type="submit" className="submit-btn">Agregar</button>
-      </form>
+      </section>
 
-      {/* Lista de Transacciones */}
-      <div className="transaction-list">
-        {loading ? (
-          <p style={{textAlign: 'center', padding: '1rem'}}>Cargando...</p>
-        ) : transactions.length === 0 ? (
-          <p style={{textAlign: 'center', padding: '1rem'}}>No hay registros aún.</p>
-        ) : (
-          transactions.map(t => (
-            <div key={t.id} className="transaction-item">
-              <div className="t-info">
-                <span className="t-desc">{t.description}</span>
-                <span className="t-date">{format(parseISO(t.date), "d 'de' MMMM, yyyy", { locale: es })}</span>
+      <div className="main-content">
+        {/* Formulario */}
+        <section className="form-section">
+          <h2>Agregar Movimiento</h2>
+          <form className="transaction-form" onSubmit={handleSubmit}>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Descripción</label>
+                <input 
+                  type="text" 
+                  name="description" 
+                  placeholder="Ej. Comida gatos" 
+                  required 
+                  value={formData.description}
+                  onChange={handleInputChange}
+                />
               </div>
-              <div style={{display: 'flex', alignItems: 'center'}}>
-                <span className={`t-amount ${t.type}`}>
-                  {t.type === 'income' ? '+' : '-'}${Number(t.amount).toFixed(2)}
-                </span>
-                <button className="delete-btn" onClick={() => handleDelete(t.id)} title="Eliminar">×</button>
+              <div className="form-group">
+                <label>Monto (COP)</label>
+                <input 
+                  type="number" 
+                  name="amount" 
+                  placeholder="0" 
+                  required 
+                  value={formData.amount}
+                  onChange={handleInputChange}
+                />
               </div>
             </div>
-          ))
-        )}
+            <div className="form-row">
+              <div className="form-group">
+                <label>Fecha</label>
+                <input 
+                  type="date" 
+                  name="date" 
+                  required 
+                  value={formData.date}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="form-group">
+                <label>Tipo</label>
+                <div className="type-selector">
+                  <label className={`radio-label ${formData.type === 'expense' ? 'selected-expense' : ''}`}>
+                    <input 
+                      type="radio" 
+                      name="type" 
+                      value="expense" 
+                      checked={formData.type === 'expense'} 
+                      onChange={handleInputChange} 
+                    />
+                    Gasto
+                  </label>
+                  <label className={`radio-label ${formData.type === 'income' ? 'selected-income' : ''}`}>
+                    <input 
+                      type="radio" 
+                      name="type" 
+                      value="income" 
+                      checked={formData.type === 'income'} 
+                      onChange={handleInputChange} 
+                    />
+                    Ingreso
+                  </label>
+                </div>
+              </div>
+            </div>
+            <button type="submit" className="submit-btn">
+              {formData.type === 'expense' ? '💸 Registrar Gasto' : '💰 Registrar Ingreso'}
+            </button>
+          </form>
+        </section>
+
+        {/* Lista de Transacciones */}
+        <section className="list-section">
+          <h2>Historial</h2>
+          <div className="transaction-list">
+            {loading ? (
+              <div className="loading-state">Cargando...</div>
+            ) : transactions.length === 0 ? (
+              <div className="empty-state">No hay movimientos registrados.</div>
+            ) : (
+              transactions.map(t => (
+                <div key={t.id} className="transaction-item">
+                  <div className="t-icon">
+                    {t.type === 'income' ? '↓' : '↑'}
+                  </div>
+                  <div className="t-info">
+                    <span className="t-desc">{t.description}</span>
+                    <span className="t-date">
+                      {format(parseISO(t.date), "d 'de' MMMM", { locale: es })}
+                    </span>
+                  </div>
+                  <div className="t-actions">
+                    <span className={`t-amount ${t.type}`}>
+                      {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                    </span>
+                    <button className="delete-btn" onClick={() => handleDelete(t.id)} title="Eliminar">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );
